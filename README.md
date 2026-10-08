@@ -1,6 +1,6 @@
 # Agent Streamlit — giao diện chat chạy local
 
-Mã nguồn cho bài **Đóng gói Agent đơn giản thành giao diện chat local với Streamlit** trong chuỗi **AI Guru x TiniX**. Dự án dùng lại hai công cụ `calculator` và `count_words` của bài `Agent_tool`, rồi thêm ô nhập, lịch sử hội thoại, nút xóa và vùng hiển thị lỗi bằng Streamlit.
+Mã nguồn cho bài **#52- Đóng gói Agent đơn giản thành giao diện chat local với Streamlit** trong chuỗi **AI Guru x TiniX**. Dự án dùng lại hai công cụ `calculator` và `count_words` của bài `Agent_tool`, rồi thêm ô nhập, lịch sử hội thoại, nút xóa và vùng hiển thị lỗi bằng Streamlit.
 
 Repository: [minquanle/Agent_Streamlit](https://github.com/minquanle/Agent_Streamlit).
 
