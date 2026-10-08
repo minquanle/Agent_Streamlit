@@ -49,7 +49,7 @@ def show_turn(turn: dict) -> None:
             st.error(turn["error"], icon=":material/error:")
             if DEBUG and turn.get("details"):
                 with st.expander("Chi tiết lỗi (dành cho Developer)"):
-                    st.code(turn["details"], language="text")
+                    st.code(turn["details"], language="text", wrap_lines=True)
         else:
             st.markdown(turn["reply"])
             if turn.get("events"):
@@ -67,7 +67,12 @@ if not st.session_state.turns:
 
 
 # 5. Nhận câu hỏi, gọi Agent và lưu kết quả hoặc lỗi vào state.
-if prompt := st.chat_input("Nhập câu hỏi của bạn...", max_chars=2000):
+if prompt := st.chat_input("Nhập câu hỏi của bạn...", max_chars=2000,
+                           submit_mode="disable"):
+    prompt = prompt.strip()
+    if not prompt:
+        st.warning("Hãy nhập câu hỏi trước khi gửi.")
+        st.stop()
     turn = {"prompt": prompt, "reply": "", "events": [], "error": ""}
     with st.chat_message("user"):
         st.markdown(prompt)

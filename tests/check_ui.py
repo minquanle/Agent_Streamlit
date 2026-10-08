@@ -28,6 +28,18 @@ with patch('dotenv.load_dotenv', return_value=False), patch.dict(os.environ, {'G
     checks.append('Nút xóa dọn lịch sử và lỗi.')
 
     app.text_input[0].set_value('unit-test-only-key').run()
+    with patch.object(agent_core, 'run_agent') as remote:
+        app.chat_input[0].set_value('   ').run()
+        assert not app.exception and remote.call_count == 0
+        assert app.session_state['turns'] == [] and len(app.warning) == 1
+    checks.append('Chỉ có khoảng trắng: cảnh báo, không gọi API và không lưu lượt rỗng.')
+    app.text_input[1].set_value('   ').run()
+    with patch.object(agent_core, 'run_agent') as remote:
+        app.chat_input[0].set_value('Xin chào').run()
+        assert not app.exception and remote.call_count == 0
+        assert 'không được để trống' in app.error[0].value
+    checks.append('Tên model rỗng: lỗi được lưu trước khi gọi API.')
+    app.button[0].click().run()
     app.text_input[1].set_value('gemini-3.5-flash-lite').run()
     event = {'tool': 'calculator', 'args': {'a': 123, 'b': 456, 'operation': 'multiply'}, 'result': '56088.0'}
     with patch.object(agent_core, 'run_agent', return_value=('56088', [event])) as remote:

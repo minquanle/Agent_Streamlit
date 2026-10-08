@@ -1,3 +1,5 @@
+from math import isfinite
+
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -7,6 +9,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 @tool
 def calculator(a: float, b: float, operation: str) -> str:
     """Tính hai số. operation nhận add, subtract, multiply hoặc divide."""
+    if not isfinite(a) or not isfinite(b):
+        return "Lỗi: đầu vào phải là số thực hữu hạn."
     if operation == "add":
         result = a + b
     elif operation == "subtract":
@@ -19,6 +23,8 @@ def calculator(a: float, b: float, operation: str) -> str:
         result = a / b
     else:
         return "Lỗi: operation không hợp lệ."
+    if not isfinite(result):
+        return "Lỗi: kết quả vượt phạm vi số thực hữu hạn."
     return str(result)
 
 

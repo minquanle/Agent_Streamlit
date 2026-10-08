@@ -4,9 +4,7 @@ Mã nguồn cho bài **Đóng gói Agent đơn giản thành giao diện chat lo
 
 Repository: [minquanle/Agent_Streamlit](https://github.com/minquanle/Agent_Streamlit).
 
-Ứng dụng chạy trên máy của bạn; các yêu cầu mô hình được gửi đến Gemini qua Internet. “Local” không có nghĩa là mô hình chạy ngoại tuyến.
-
-![Giao diện chat và kết quả công cụ calculator](docs/images/local_tools.jpg)
+Ứng dụng chạy trên máy của bạn; câu hỏi, tối đa 5 cặp hỏi–đáp có phản hồi gần nhất và kết quả tool trong lượt hiện tại được gửi tới Gemini qua Internet. “Local” chỉ nơi chạy giao diện và Python. Không nhập thông tin nhạy cảm, bí mật hoặc dữ liệu mà bạn chưa có quyền gửi tới dịch vụ API.
 
 ## 1. Chuẩn bị
 
@@ -80,11 +78,12 @@ python smoke_test.py
 python -m streamlit run app.py --server.address 127.0.0.1
 ```
 
-Hai dòng mong đợi từ smoke test:
+Ba dòng mong đợi từ smoke test:
 
 ```text
 PASS: 123*456=56088; đếm 4 từ; chia 0 trả thông báo lỗi.
 PASS: giữ 5 lượt thành công; bỏ lượt lỗi; câu mới có đúng một lần.
+PASS: từ chối inf/nan và báo lỗi khi kết quả tràn số thực.
 ```
 
 Mở [http://127.0.0.1:8501](http://127.0.0.1:8501). Giữ Terminal chạy trong lúc sử dụng. Dừng server bằng **Ctrl+C**. Nếu cổng đã được dùng, thêm `--server.port 8502` vào lệnh và mở URL với cổng 8502.
@@ -101,8 +100,6 @@ Các giá trị dưới đây là kết quả mong đợi cho ví dụ. Đối c
 | Rerun | Đổi ô tên mô hình rồi đưa về giá trị cũ, kiểm tra các lượt còn trên UI. Thao tác này không gửi một câu hỏi mới. |
 | Nút xóa | Nhấn **Xóa lịch sử hội thoại** và kiểm tra tin nhắn, log tool, lỗi cũ đã được bỏ khỏi UI. Code không gửi lại các lượt đã xóa; vẫn cần kiểm tra phản hồi mới có suy đoán thông tin cá nhân hay không. |
 | Vùng lỗi | Nhập `invalid-test-key` ở sidebar rồi gửi câu hỏi. Kiểm tra thông báo khi API từ chối; bỏ key thử để dùng lại cấu hình hợp lệ. |
-
-![Vùng hiển thị lỗi khi API key thử bị từ chối](docs/images/local_invalid_key.jpg)
 
 Để thử **thiếu key**, dừng server trước. Trên PowerShell:
 
@@ -130,9 +127,9 @@ python tests/check_agent_loop.py
 python tests/check_ui.py
 ```
 
-- `smoke_test.py`: phép nhân, đếm theo khoảng trắng, chia cho 0 và cắt lịch sử theo cặp hỏi–đáp.
-- `tests/check_agent_loop.py`: mô hình mô phỏng, công cụ Python thật; kiểm tra nhiều tool, `tool_call_id`, phản hồi rỗng và giới hạn 5 lần gọi.
-- `tests/check_ui.py`: Streamlit AppTest với API mô phỏng; kiểm tra thiếu key, lỗi qua rerun, xóa, tránh gửi lại câu hỏi khi rerun, phục hồi sau lỗi và dữ liệu giữa các phiên.
+- `smoke_test.py`: phép nhân, đếm theo khoảng trắng, chia cho 0, số không hữu hạn, tràn số và cắt lịch sử theo cặp hỏi–đáp.
+- `tests/check_agent_loop.py`: 6 nhóm kiểm tra với mô hình mô phỏng, công cụ Python thật; gồm nhiều tool, `tool_call_id`, phản hồi rỗng, giới hạn 5 lần gọi, tham số sai schema và lỗi API sau khi tool chạy.
+- `tests/check_ui.py`: 8 nhóm Streamlit AppTest với API mô phỏng; gồm thiếu key/model, đầu vào chỉ có khoảng trắng, lỗi qua rerun, xóa, tránh gửi lại câu hỏi khi rerun, phục hồi sau lỗi và dữ liệu giữa các phiên.
 
 Kết quả JSON nằm trong `tests/results/`, được bỏ qua bởi Git. Các kiểm tra này không chứng minh kết nối Gemini hoạt động; dùng các kịch bản trên trình duyệt để kiểm tra API với key của bạn. AppTest có thể in cảnh báo `missing ScriptRunContext` khi chạy ngoài server; cần đọc các dòng `PASS` và mã thoát của script.
 
@@ -148,10 +145,9 @@ Agent_Streamlit/
 ├── .gitignore
 ├── .streamlit/config.toml       # Theme sáng, tắt thống kê sử dụng
 ├── README.md
-├── tests/
-│   ├── check_agent_loop.py
-│   └── check_ui.py
-└── docs/images/                 # Ảnh minh họa dùng trong README
+└── tests/
+    ├── check_agent_loop.py
+    └── check_ui.py
 ```
 
 Luồng xử lý: nhận câu hỏi → ghép tối đa 5 cặp hỏi–đáp thành công gần nhất → gọi mô hình → thực thi các tool được yêu cầu → gửi `ToolMessage` → lưu câu trả lời hoặc lỗi vào Session State → rerun để hiển thị.
@@ -160,8 +156,11 @@ Luồng xử lý: nhận câu hỏi → ghép tối đa 5 cặp hỏi–đáp th
 
 - UI giữ hội thoại trong phiên kết nối; refresh, mở tab mới hoặc restart server có thể mất lịch sử. Chưa có đăng nhập hay lưu hội thoại bền vững.
 - Chỉ tối đa 5 cặp hỏi–đáp thành công được gửi lại; lượt lỗi không được gửi vào ngữ cảnh. Đây là giới hạn theo lượt, không phải giới hạn token.
+- “Thành công” trong code nghĩa là đã nhận phản hồi văn bản không rỗng, chưa xác nhận câu trả lời đúng. Tool trả chuỗi lỗi vẫn có thể dẫn tới một phản hồi được lưu trong ngữ cảnh.
 - Vòng lặp có tối đa 5 lần gọi mô hình; timeout cấu hình 30 giây mỗi lần, `max_retries=0`. Tổng thời gian còn phụ thuộc số lần gọi và thực thi tool.
-- `count_words` dùng `text.split()`, không phải thuật toán tách từ tiếng Việt. `calculator` dùng số thực Python, có giới hạn về độ chính xác và chỉ hỗ trợ bốn phép toán.
+- `count_words` dùng `text.split()`, không phải thuật toán tách từ tiếng Việt. `calculator` chỉ hỗ trợ bốn phép toán với `float`: ví dụ `0.1 + 0.2` có thể trả `0.30000000000000004`. Code báo lỗi cho `inf`, `nan` và kết quả không hữu hạn; chưa phải phép tính thập phân chính xác.
+- Tham số tool sai schema làm lượt xử lý gặp ngoại lệ; code chưa yêu cầu mô hình tự sửa tham số. Nhật ký **Công cụ đã chạy** chỉ được lưu khi `run_agent` trả về; nếu API lỗi sau khi tool chạy hoặc chạm giới hạn vòng lặp, UI chỉ lưu lỗi của lượt đó.
+- Ô chat dùng `submit_mode="disable"` để chặn gửi câu mới trong lúc xử lý. Thay đổi sidebar, refresh hoặc ngắt kết nối vẫn có thể gián đoạn lượt đang chạy; chưa có cơ chế phục hồi lượt dở dang. Giới hạn 2.000 ký tự áp dụng cho ô nhập, không giới hạn toàn bộ ngữ cảnh hay tham số tool.
 - Phân loại lỗi API dựa trên chuỗi trong thông báo ngoại lệ; thông báo khác có thể rơi vào nhánh lỗi chung.
 - DEBUG thay các chuỗi key đã biết bằng ký hiệu che, chưa phải bộ lọc mọi dữ liệu nhạy cảm. Xem traceback trên máy local và kiểm tra trước khi chia sẻ.
 - Đây là khung thực hành local. Nếu phát triển thành dịch vụ cho nhiều người dùng, cần thiết kế và kiểm thử thêm xác thực, phân quyền, lưu trữ và vận hành.

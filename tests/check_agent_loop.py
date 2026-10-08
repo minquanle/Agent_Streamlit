@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from langchain_core.messages import AIMessage, ToolMessage
+from pydantic import ValidationError
 
 root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root))
@@ -29,6 +30,8 @@ assert reply == 'Kết quả đúng.' and len(events) == 2
 messages = model.invoke.call_args.args[0]
 assert [m.tool_call_id for m in messages if isinstance(m, ToolMessage)] == ['wc-1', 'calc-1']
 assert model.invoke.call_count == 2
+assert constructor.call_args.kwargs['timeout'] == 30
+assert constructor.call_args.kwargs['max_retries'] == 0
 checks.append('Nhiều tool trong một phản hồi; ghép đúng ID kết quả; nội dung dạng block.')
 
 constructor, model = fake_run([AIMessage(content='', tool_calls=[
@@ -56,6 +59,27 @@ with patch('agent_core.ChatGoogleGenerativeAI', constructor):
         assert '5 lần' in str(exc)
 assert model.invoke.call_count == 5
 checks.append('Vòng lặp tool chưa kết thúc dừng sau đúng 5 lần gọi mô hình.')
+
+constructor, model = fake_run([AIMessage(content='', tool_calls=[
+    {'name': 'calculator', 'args': {'a': 'abc', 'operation': 'add'}, 'id': 'bad-1'}])])
+with patch('agent_core.ChatGoogleGenerativeAI', constructor):
+    try:
+        run_agent([], 'fake-key', 'test-model')
+        raise AssertionError('Invalid tool arguments incorrectly succeeded')
+    except ValidationError:
+        pass
+assert model.invoke.call_count == 1
+checks.append('Tham số tool sai schema: ngoại lệ thoát về UI; không tự sửa tham số.')
+
+constructor, model = fake_run([first, RuntimeError('Simulated API failure after tools')])
+with patch('agent_core.ChatGoogleGenerativeAI', constructor):
+    try:
+        run_agent([], 'fake-key', 'test-model')
+        raise AssertionError('API failure incorrectly succeeded')
+    except RuntimeError as exc:
+        assert 'after tools' in str(exc)
+assert model.invoke.call_count == 2
+checks.append('API lỗi sau khi tool chạy: hàm ném ngoại lệ, không trả tuple chứa events.')
 
 (root / 'tests/results/agent_checks.json').write_text(json.dumps({
     'passed': len(checks), 'checks': checks, 'method': 'Mocked model; actual Python tools executed.'
